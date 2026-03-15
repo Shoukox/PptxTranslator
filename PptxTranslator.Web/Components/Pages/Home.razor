@@ -1,0 +1,531 @@
+@page "/"
+
+<PageTitle>PPTX Translator</PageTitle>
+
+<div class="translator-shell" id="translatorShell">
+    <div class="translator-card shadow-lg">
+        <div class="top-bar">
+            <div></div>
+            <div class="language-switcher" role="group" aria-label="Interface language">
+                <button type="button" class="language-switch active" data-ui-lang="en">EN</button>
+                <button type="button" class="language-switch" data-ui-lang="ru">RU</button>
+            </div>
+        </div>
+
+        <div class="translator-header">
+            <p class="eyebrow" data-i18n="eyebrow">Simple PPTX translator</p>
+            <h1 data-i18n="title">Upload, translate, download</h1>
+            <p class="subtitle" data-i18n="subtitle">
+                Upload a PowerPoint, choose source and target languages, then download the translated .pptx.
+            </p>
+        </div>
+
+        <form id="translatorForm" action="/translate" method="post" enctype="multipart/form-data" class="translator-form">
+            <div class="row g-3 align-items-end">
+                <div class="col-12">
+                    <label class="form-label" for="pptxFile" data-i18n="fileLabel">PowerPoint file</label>
+
+                    <div class="file-picker" id="filePicker">
+                        <input id="pptxFile" name="pptxFile" class="file-input" type="file" accept=".pptx" required />
+                        <button type="button" id="filePickerButton" class="file-picker-button" data-i18n="chooseFile">
+                            Choose file
+                        </button>
+                        <div class="file-picker-meta">
+                            <div id="selectedFileName" class="file-picker-name" data-i18n="noFileSelected">No file selected</div>
+                            <div id="selectedFileMeta" class="file-picker-hint" data-i18n="fileHint">Only .pptx files are supported.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-6">
+                    <label class="form-label" for="sourceLanguage" data-i18n="fromLabel">From</label>
+                    <select id="sourceLanguage" name="sourceLanguage" class="form-select form-select-lg">
+                        <option value="en" selected>English</option>
+                        <option value="ru">Russian</option>
+                        <option value="de">German</option>
+                        <option value="fr">French</option>
+                        <option value="es">Spanish</option>
+                        <option value="it">Italian</option>
+                        <option value="pt">Portuguese</option>
+                        <option value="pl">Polish</option>
+                        <option value="uk">Ukrainian</option>
+                        <option value="tr">Turkish</option>
+                        <option value="nl">Dutch</option>
+                        <option value="cs">Czech</option>
+                        <option value="ro">Romanian</option>
+                        <option value="ja">Japanese</option>
+                        <option value="ko">Korean</option>
+                        <option value="zh-CN">Chinese (Simplified)</option>
+                    </select>
+                </div>
+
+                <div class="col-12 col-md-6">
+                    <label class="form-label" for="targetLanguage" data-i18n="toLabel">To</label>
+                    <select id="targetLanguage" name="targetLanguage" class="form-select form-select-lg">
+                        <option value="ru" selected>Russian</option>
+                        <option value="en">English</option>
+                        <option value="de">German</option>
+                        <option value="fr">French</option>
+                        <option value="es">Spanish</option>
+                        <option value="it">Italian</option>
+                        <option value="pt">Portuguese</option>
+                        <option value="pl">Polish</option>
+                        <option value="uk">Ukrainian</option>
+                        <option value="tr">Turkish</option>
+                        <option value="nl">Dutch</option>
+                        <option value="cs">Czech</option>
+                        <option value="ro">Romanian</option>
+                        <option value="ja">Japanese</option>
+                        <option value="ko">Korean</option>
+                        <option value="zh-CN">Chinese (Simplified)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="statusPanel" class="status-panel" hidden>
+                <div class="status-panel-header">
+                    <div>
+                        <div id="statusPanelTitle" class="status-panel-title" data-i18n="uploadIndicatorTitle">Processing file</div>
+                        <div id="statusPanelMessage" class="status-panel-message" data-i18n="uploadIndicatorStage">Uploading and translating…</div>
+                    </div>
+                    <div id="elapsedTimePill" class="elapsed-time-pill" hidden>
+                        <span data-i18n="elapsedLabel">Elapsed</span>
+                        <strong id="elapsedTimeValue">00:00</strong>
+                    </div>
+                </div>
+                <div id="statusProgressTrack" class="progress-track" aria-hidden="true" hidden>
+                    <div class="progress-bar-indeterminate"></div>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button id="translateButton" type="submit" class="btn btn-primary btn-lg translate-button">
+                    <span class="button-label" data-i18n="translateButton">Translate</span>
+                    <span class="spinner-border spinner-border-sm button-spinner" role="status" aria-hidden="true"></span>
+                </button>
+
+                <a id="downloadResultLink" class="download-result-link" href="#" download hidden>
+                    <span data-i18n="downloadResultLinkLabel">Download translated file</span>
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    (() => {
+        const form = document.getElementById('translatorForm');
+        if (!form || form.dataset.bound === 'true') {
+            return;
+        }
+
+        form.dataset.bound = 'true';
+
+        const translations = {
+            en: {
+                pageTitle: 'PPTX Translator',
+                eyebrow: 'Simple PPTX translator',
+                title: 'Upload, translate, download',
+                subtitle: 'Upload a PowerPoint, choose source and target languages, then download the translated .pptx.',
+                fileLabel: 'PowerPoint file',
+                chooseFile: 'Choose file',
+                noFileSelected: 'No file selected',
+                fileHint: 'Only .pptx files are supported.',
+                fileSelectedMeta: (size) => `${size} · ready to upload`,
+                dragDropHint: 'Drop your .pptx file here',
+                fromLabel: 'From',
+                toLabel: 'To',
+                translateButton: 'Translate',
+                uploadIndicatorTitle: 'Processing file',
+                uploadIndicatorStage: 'Uploading and translating…',
+                successTitle: 'Translation complete',
+                partialSuccessTitle: 'Translation completed with notes',
+                errorTitle: 'Translation failed',
+                elapsedLabel: 'Elapsed',
+                downloadResultLinkLabel: 'Download translated file',
+                chooseFileFirst: 'Choose a .pptx file first.',
+                onlyPptx: 'Only .pptx files are supported.',
+                differentLanguages: 'Pick different source and target languages.',
+                translating: 'Translating… this can take a little while for large decks.',
+                translationFailed: 'Translation failed.',
+                partialTranslationCompleted: fileName => `Translation completed. Translated ${fileName}. Some text was kept in the original language.`,
+                doneDownloaded: fileName => `Done: ${fileName}`,
+                unexpectedError: error => `Unexpected error: ${error}`
+            },
+            ru: {
+                pageTitle: 'PPTX Переводчик',
+                eyebrow: 'Переводчик презентаций PPTX',
+                title: 'Загрузите презентацию, переведите и скачайте результат',
+                subtitle: 'Загрузите презентацию PowerPoint, выберите исходный и целевой языки, затем скачайте переведённый .pptx.',
+                fileLabel: 'Файл PowerPoint',
+                chooseFile: 'Выбрать файл',
+                noFileSelected: 'Файл не выбран',
+                fileHint: 'Поддерживаются только файлы .pptx.',
+                fileSelectedMeta: (size) => `${size} · готово к загрузке`,
+                dragDropHint: 'Отпустите .pptx файл сюда',
+                fromLabel: 'Исходный язык',
+                toLabel: 'Целевой язык',
+                translateButton: 'Перевести',
+                uploadIndicatorTitle: 'Обработка файла',
+                uploadIndicatorStage: 'Загрузка и перевод…',
+                successTitle: 'Перевод завершён',
+                partialSuccessTitle: 'Перевод завершён с замечаниями',
+                errorTitle: 'Ошибка перевода',
+                elapsedLabel: 'Прошло',
+                downloadResultLinkLabel: 'Скачать переведённый файл',
+                chooseFileFirst: 'Сначала выберите файл .pptx.',
+                onlyPptx: 'Поддерживаются только файлы .pptx.',
+                differentLanguages: 'Выберите разные исходный и целевой языки.',
+                translating: 'Переводим… для больших презентаций это может занять немного времени.',
+                translationFailed: 'Не удалось выполнить перевод.',
+                partialTranslationCompleted: fileName => `Перевод завершён. Файл ${fileName} был переведен. Часть текста оставлена на исходном языке.`,
+                doneDownloaded: fileName => `Готово: ${fileName}`,
+                unexpectedError: error => `Непредвиденная ошибка: ${error}`
+            }
+        };
+
+        let currentUiLanguage = localStorage.getItem('pptxTranslator.uiLanguage') || 'en';
+        let elapsedTimer = null;
+        let startedAt = null;
+        let lastDownloadUrl = null;
+        let dragDepth = 0;
+
+        const shell = document.getElementById('translatorShell');
+        const button = document.getElementById('translateButton');
+        const fileInput = document.getElementById('pptxFile');
+        const filePicker = document.getElementById('filePicker');
+        const filePickerButton = document.getElementById('filePickerButton');
+        const selectedFileName = document.getElementById('selectedFileName');
+        const selectedFileMeta = document.getElementById('selectedFileMeta');
+        const sourceSelect = document.getElementById('sourceLanguage');
+        const targetSelect = document.getElementById('targetLanguage');
+        const languageButtons = document.querySelectorAll('[data-ui-lang]');
+        const statusPanel = document.getElementById('statusPanel');
+        const statusPanelTitle = document.getElementById('statusPanelTitle');
+        const statusPanelMessage = document.getElementById('statusPanelMessage');
+        const elapsedTimePill = document.getElementById('elapsedTimePill');
+        const statusProgressTrack = document.getElementById('statusProgressTrack');
+        const elapsedTimeValue = document.getElementById('elapsedTimeValue');
+        const downloadResultLink = document.getElementById('downloadResultLink');
+
+        const t = (key) => translations[currentUiLanguage]?.[key] ?? translations.en[key] ?? key;
+
+        const formatElapsed = (milliseconds) => {
+            const totalSeconds = Math.floor(milliseconds / 1000);
+            const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
+            const seconds = String(totalSeconds % 60).padStart(2, '0');
+            return `${minutes}:${seconds}`;
+        };
+
+        const formatFileSize = (bytes) => {
+            if (!Number.isFinite(bytes) || bytes <= 0) {
+                return '0 B';
+            }
+
+            const units = ['B', 'KB', 'MB', 'GB'];
+            let value = bytes;
+            let unitIndex = 0;
+
+            while (value >= 1024 && unitIndex < units.length - 1) {
+                value /= 1024;
+                unitIndex++;
+            }
+
+            const precision = value >= 10 || unitIndex === 0 ? 0 : 1;
+            return `${value.toFixed(precision)} ${units[unitIndex]}`;
+        };
+
+        const setDragState = (isDragging) => {
+            shell.classList.toggle('is-dragging', isDragging);
+            filePicker.classList.toggle('is-dragging', isDragging);
+            selectedFileMeta.textContent = isDragging ? t('dragDropHint') : (fileInput.files?.[0] ? t('fileSelectedMeta')(formatFileSize(fileInput.files[0].size)) : t('fileHint'));
+        };
+
+        const clearDownloadResult = () => {
+            if (lastDownloadUrl) {
+                URL.revokeObjectURL(lastDownloadUrl);
+                lastDownloadUrl = null;
+            }
+
+            downloadResultLink.hidden = true;
+            downloadResultLink.removeAttribute('href');
+            downloadResultLink.removeAttribute('download');
+        };
+
+        const setDownloadResult = (url, fileName) => {
+            clearDownloadResult();
+            lastDownloadUrl = url;
+            downloadResultLink.href = url;
+            downloadResultLink.download = fileName;
+            downloadResultLink.hidden = false;
+        };
+
+        const setStatusPanel = ({ title, message, type = 'info', showTimer = false, showProgress = false }) => {
+            statusPanelTitle.textContent = title;
+            statusPanelMessage.textContent = message;
+            statusPanel.className = `status-panel status-panel-${type}`;
+            statusPanel.hidden = !title && !message;
+            elapsedTimePill.hidden = !showTimer;
+            statusProgressTrack.hidden = !showProgress;
+        };
+
+        const clearStatusPanel = () => {
+            statusPanel.hidden = true;
+            elapsedTimePill.hidden = true;
+            statusProgressTrack.hidden = true;
+        };
+
+        const startElapsedTimer = () => {
+            startedAt = Date.now();
+            elapsedTimeValue.textContent = '00:00';
+            elapsedTimer = window.setInterval(() => {
+                elapsedTimeValue.textContent = formatElapsed(Date.now() - startedAt);
+            }, 1000);
+        };
+
+        const stopElapsedTimer = () => {
+            if (elapsedTimer) {
+                window.clearInterval(elapsedTimer);
+                elapsedTimer = null;
+            }
+        };
+
+        const setLoading = (isLoading) => {
+            button.disabled = isLoading;
+            fileInput.disabled = isLoading;
+            filePickerButton.disabled = isLoading;
+            sourceSelect.disabled = isLoading;
+            targetSelect.disabled = isLoading;
+
+            form.classList.toggle('is-loading', isLoading);
+            
+            if (isLoading) {
+                startElapsedTimer();
+                setStatusPanel({
+                    title: t('uploadIndicatorTitle'),
+                    message: t('uploadIndicatorStage'),
+                    type: 'info',
+                    showTimer: true,
+                    showProgress: true
+                });
+            } else {
+                stopElapsedTimer();
+            }
+        };
+
+        const updateSelectedFileName = () => {
+            const file = fileInput.files?.[0];
+            selectedFileName.textContent = file ? file.name : t('noFileSelected');
+            selectedFileMeta.textContent = file ? t('fileSelectedMeta')(formatFileSize(file.size)) : t('fileHint');
+            filePicker.classList.toggle('has-file', !!file);
+        };
+
+        const applyTranslations = () => {
+            document.documentElement.lang = currentUiLanguage;
+            document.title = t('pageTitle');
+
+            document.querySelectorAll('[data-i18n]').forEach(element => {
+                const key = element.dataset.i18n;
+                const value = t(key);
+                if (typeof value === 'string') {
+                    element.textContent = value;
+                }
+            });
+
+            languageButtons.forEach(languageButton => {
+                languageButton.classList.toggle('active', languageButton.dataset.uiLang === currentUiLanguage);
+            });
+
+            if (!statusPanel.hidden && !elapsedTimePill.hidden) {
+                statusPanelTitle.textContent = t('uploadIndicatorTitle');
+                statusPanelMessage.textContent = t('uploadIndicatorStage');
+            }
+
+            if (shell.classList.contains('is-dragging')) {
+                selectedFileMeta.textContent = t('dragDropHint');
+            } else {
+                updateSelectedFileName();
+            }
+        };
+
+        const assignDroppedFile = (file) => {
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            fileInput.files = dataTransfer.files;
+            updateSelectedFileName();
+        };
+
+        filePickerButton.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', updateSelectedFileName);
+
+        window.addEventListener('dragenter', (event) => {
+            if (!event.dataTransfer?.types?.includes('Files')) {
+                return;
+            }
+
+            event.preventDefault();
+            dragDepth += 1;
+            setDragState(true);
+        });
+
+        window.addEventListener('dragover', (event) => {
+            if (!event.dataTransfer?.types?.includes('Files')) {
+                return;
+            }
+
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'copy';
+            setDragState(true);
+        });
+
+        window.addEventListener('dragleave', (event) => {
+            if (!event.dataTransfer?.types?.includes('Files')) {
+                return;
+            }
+
+            dragDepth = Math.max(0, dragDepth - 1);
+            if (dragDepth === 0) {
+                setDragState(false);
+            }
+        });
+
+        window.addEventListener('drop', (event) => {
+            if (!event.dataTransfer?.files?.length) {
+                return;
+            }
+
+            event.preventDefault();
+            dragDepth = 0;
+            setDragState(false);
+
+            const [file] = event.dataTransfer.files;
+            if (!file) {
+                return;
+            }
+
+            assignDroppedFile(file);
+        });
+
+        languageButtons.forEach(languageButton => {
+            languageButton.addEventListener('click', () => {
+                currentUiLanguage = languageButton.dataset.uiLang || 'en';
+                localStorage.setItem('pptxTranslator.uiLanguage', currentUiLanguage);
+                applyTranslations();
+            });
+        });
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            clearDownloadResult();
+            clearStatusPanel();
+
+            const file = fileInput.files?.[0];
+            if (!file) {
+                setStatusPanel({
+                    title: t('errorTitle'),
+                    message: t('chooseFileFirst'),
+                    type: 'error'
+                });
+                return;
+            }
+
+            if (!file.name.toLowerCase().endsWith('.pptx')) {
+                setStatusPanel({
+                    title: t('errorTitle'),
+                    message: t('onlyPptx'),
+                    type: 'error'
+                });
+                return;
+            }
+
+            if (sourceSelect.value === targetSelect.value) {
+                setStatusPanel({
+                    title: t('errorTitle'),
+                    message: t('differentLanguages'),
+                    type: 'error'
+                });
+                return;
+            }
+
+            const formData = new FormData(form);
+            setLoading(true);
+
+            try {
+                const response = await fetch('/translate', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    let errorMessage = t('translationFailed');
+                    const contentType = response.headers.get('content-type') || '';
+
+                    if (contentType.includes('application/problem+json') || contentType.includes('application/json')) {
+                        const problem = await response.json();
+                        errorMessage = problem.detail || problem.title || errorMessage;
+                    } else {
+                        const text = await response.text();
+                        if (text) {
+                            errorMessage = text;
+                        }
+                    }
+
+                    setStatusPanel({
+                        title: t('errorTitle'),
+                        message: errorMessage,
+                        type: 'error'
+                    });
+                    return;
+                }
+
+                const partialTranslationNotice = response.headers.get('X-Translation-Notice');
+                const blob = await response.blob();
+                const disposition = response.headers.get('content-disposition') || '';
+                const match = disposition.match(/filename\*?=(?:UTF-8''|\")?([^\";]+)/i);
+                const fileName = match ? decodeURIComponent(match[1].replace(/\"/g, '').trim()) : 'translated.pptx';
+                const url = URL.createObjectURL(blob);
+                setDownloadResult(url, fileName);
+
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = fileName;
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+
+                setStatusPanel({
+                    title: partialTranslationNotice ? t('partialSuccessTitle') : t('successTitle'),
+                    message: partialTranslationNotice ? t('partialTranslationCompleted')(fileName) : t('doneDownloaded')(fileName),
+                    type: partialTranslationNotice ? 'info' : 'success'
+                });
+            } catch (error) {
+                setStatusPanel({
+                    title: t('errorTitle'),
+                    message: t('unexpectedError')(error?.message || error),
+                    type: 'error'
+                });
+            } finally {
+                setLoading(false);
+            }
+        });
+
+        applyTranslations();
+    })();
+
+    window.addEventListener('load', () => {
+        const clearSelection = () => {
+            const selection = window.getSelection();
+            if (selection) {
+                selection.removeAllRanges();
+            }
+
+            if (document.activeElement instanceof HTMLElement && document.activeElement !== document.body) {
+                document.activeElement.blur();
+            }
+        };
+
+        clearSelection();
+        requestAnimationFrame(clearSelection);
+        setTimeout(clearSelection, 50);
+    });
+</script>

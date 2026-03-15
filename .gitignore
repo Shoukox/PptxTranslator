@@ -1,0 +1,59 @@
+# Build output
+[Bb]in/
+[Oo]bj/
+out/
+publish/
+artifacts/
+
+# User-specific files
+*.user
+*.rsuser
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Visual Studio / Rider / VS Code
+.vs/
+.idea/
+.vscode/
+_ReSharper*/
+*.DotSettings.user
+
+# NuGet
+packages/
+*.nupkg
+*.snupkg
+.nuget/
+
+# ASP.NET / web tooling
+wwwroot/dist/
+wwwroot/lib/
+
+# Logs
+*.log
+logs/
+
+# Test / coverage
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+
+# Local environment / secrets
+.env
+.env.*
+appsettings.Development.json
+appsettings.Local.json
+secrets.json
+
+# Node / frontend tooling
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Aspire / container local overrides
+docker-compose.override.yml
+*.local.yml
