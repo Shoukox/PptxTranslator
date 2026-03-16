@@ -20,7 +20,7 @@
             </p>
         </div>
 
-        <form id="translatorForm" action="/translate" method="post" enctype="multipart/form-data" class="translator-form">
+        <form id="translatorForm" action="/translate/jobs" method="post" enctype="multipart/form-data" class="translator-form">
             <div class="row g-3 align-items-end">
                 <div class="col-12">
                     <label class="form-label" for="pptxFile" data-i18n="fileLabel">PowerPoint file</label>
@@ -146,8 +146,11 @@
                 chooseFileFirst: 'Choose a .pptx file first.',
                 onlyPptx: 'Only .pptx files are supported.',
                 differentLanguages: 'Pick different source and target languages.',
-                translating: 'Translating… this can take a little while for large decks.',
+                translating: 'Uploading…',
+                queued: 'Upload finished. Translation job created.',
+                running: 'Translating… this can take a little while for large decks.',
                 translationFailed: 'Translation failed.',
+                resultExpired: 'The translated file is no longer available. Please run the translation again.',
                 partialTranslationCompleted: fileName => `Translation completed. Translated ${fileName}. Some text was kept in the original language.`,
                 doneDownloaded: fileName => `Done: ${fileName}`,
                 unexpectedError: error => `Unexpected error: ${error}`
@@ -176,8 +179,11 @@
                 chooseFileFirst: 'Сначала выберите файл .pptx.',
                 onlyPptx: 'Поддерживаются только файлы .pptx.',
                 differentLanguages: 'Выберите разные исходный и целевой языки.',
-                translating: 'Переводим… для больших презентаций это может занять немного времени.',
+                translating: 'Загрузка…',
+                queued: 'Загрузка завершена. Задание на перевод создано.',
+                running: 'Переводим… для больших презентаций это может занять немного времени.',
                 translationFailed: 'Не удалось выполнить перевод.',
+                resultExpired: 'Переведённый файл больше недоступен. Запустите перевод ещё раз.',
                 partialTranslationCompleted: fileName => `Перевод завершён. Файл ${fileName} был переведен. Часть текста оставлена на исходном языке.`,
                 doneDownloaded: fileName => `Готово: ${fileName}`,
                 unexpectedError: error => `Непредвиденная ошибка: ${error}`
@@ -348,6 +354,105 @@
             }
         };
 
+        const delay = (milliseconds) => new Promise(resolve => window.setTimeout(resolve, milliseconds));
+
+        const readErrorMessage = async (response, fallback) => {
+            let errorMessage = fallback;
+            const contentType = response.headers.get('content-type') || '';
+
+            if (contentType.includes('application/problem+json') || contentType.includes('application/json')) {
+                const problem = await response.json();
+                errorMessage = problem.detail || problem.title || problem.message || errorMessage;
+            } else {
+                const text = await response.text();
+                if (text) {
+                    errorMessage = text;
+                }
+            }
+
+            return errorMessage;
+        };
+
+        const downloadCompletedJobAsync = async (downloadUrl, fallbackFileName) => {
+            const response = await fetch(downloadUrl, {
+                method: 'GET'
+            });
+
+            if (!response.ok) {
+                if (response.status === 410) {
+                    throw new Error(t('resultExpired'));
+                }
+
+                throw new Error(await readErrorMessage(response, t('translationFailed')));
+            }
+
+            const partialTranslationNotice = response.headers.get('X-Translation-Notice');
+            const blob = await response.blob();
+            const disposition = response.headers.get('content-disposition') || '';
+            const match = disposition.match(/filename\*?=(?:UTF-8''|\")?([^\";]+)/i);
+            const fileName = match ? decodeURIComponent(match[1].replace(/\"/g, '').trim()) : (fallbackFileName || 'translated.pptx');
+            const url = URL.createObjectURL(blob);
+            setDownloadResult(url, fileName);
+
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+
+            setStatusPanel({
+                title: partialTranslationNotice ? t('partialSuccessTitle') : t('successTitle'),
+                message: partialTranslationNotice ? t('partialTranslationCompleted')(fileName) : t('doneDownloaded')(fileName),
+                type: partialTranslationNotice ? 'info' : 'success'
+            });
+        };
+
+        const pollJobUntilCompletedAsync = async (jobId) => {
+            while (true) {
+                const response = await fetch(`/translate/jobs/${encodeURIComponent(jobId)}`, {
+                    method: 'GET',
+                    cache: 'no-store'
+                });
+
+                if (!response.ok) {
+                    if (response.status === 404 || response.status === 410) {
+                        throw new Error(t('resultExpired'));
+                    }
+
+                    throw new Error(await readErrorMessage(response, t('translationFailed')));
+                }
+
+                const job = await response.json();
+                const status = (job.status || '').toLowerCase();
+
+                if (status === 'queued') {
+                    setStatusPanel({
+                        title: t('uploadIndicatorTitle'),
+                        message: job.message || t('queued'),
+                        type: 'info',
+                        showTimer: true,
+                        showProgress: true
+                    });
+                } else if (status === 'running') {
+                    setStatusPanel({
+                        title: t('uploadIndicatorTitle'),
+                        message: job.message || t('running'),
+                        type: 'info',
+                        showTimer: true,
+                        showProgress: true
+                    });
+                } else if (status === 'failed') {
+                    throw new Error(job.message || t('translationFailed'));
+                } else if (status === 'completed') {
+                    await downloadCompletedJobAsync(job.downloadUrl, job.fileName);
+                    return;
+                }
+
+                await delay(2000);
+            }
+        };
+
         const assignDroppedFile = (file) => {
             const dataTransfer = new DataTransfer();
             dataTransfer.items.add(file);
@@ -451,57 +556,38 @@
             setLoading(true);
 
             try {
-                const response = await fetch('/translate', {
+                setStatusPanel({
+                    title: t('uploadIndicatorTitle'),
+                    message: t('translating'),
+                    type: 'info',
+                    showTimer: true,
+                    showProgress: true
+                });
+
+                const response = await fetch('/translate/jobs', {
                     method: 'POST',
                     body: formData
                 });
 
                 if (!response.ok) {
-                    let errorMessage = t('translationFailed');
-                    const contentType = response.headers.get('content-type') || '';
-
-                    if (contentType.includes('application/problem+json') || contentType.includes('application/json')) {
-                        const problem = await response.json();
-                        errorMessage = problem.detail || problem.title || errorMessage;
-                    } else {
-                        const text = await response.text();
-                        if (text) {
-                            errorMessage = text;
-                        }
-                    }
-
                     setStatusPanel({
                         title: t('errorTitle'),
-                        message: errorMessage,
+                        message: await readErrorMessage(response, t('translationFailed')),
                         type: 'error'
                     });
                     return;
                 }
 
-                const partialTranslationNotice = response.headers.get('X-Translation-Notice');
-                const blob = await response.blob();
-                const disposition = response.headers.get('content-disposition') || '';
-                const match = disposition.match(/filename\*?=(?:UTF-8''|\")?([^\";]+)/i);
-                const fileName = match ? decodeURIComponent(match[1].replace(/\"/g, '').trim()) : 'translated.pptx';
-                const url = URL.createObjectURL(blob);
-                setDownloadResult(url, fileName);
+                const job = await response.json();
+                if (!job?.jobId) {
+                    throw new Error(t('translationFailed'));
+                }
 
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = fileName;
-                document.body.appendChild(link);
-                link.click();
-                link.remove();
-
-                setStatusPanel({
-                    title: partialTranslationNotice ? t('partialSuccessTitle') : t('successTitle'),
-                    message: partialTranslationNotice ? t('partialTranslationCompleted')(fileName) : t('doneDownloaded')(fileName),
-                    type: partialTranslationNotice ? 'info' : 'success'
-                });
+                await pollJobUntilCompletedAsync(job.jobId);
             } catch (error) {
                 setStatusPanel({
                     title: t('errorTitle'),
-                    message: t('unexpectedError')(error?.message || error),
+                    message: error?.message || t('unexpectedError')(error),
                     type: 'error'
                 });
             } finally {
