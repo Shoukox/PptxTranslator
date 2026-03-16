@@ -13,9 +13,8 @@ services:
     image: "${WEBFRONTEND_IMAGE}"
     environment:
       ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
-      ASPNETCORE_ENVIRONMENT: "Development"
-    expose:
-      - "8080"
+    ports:
+      - "5000:8080"
     networks:
       - "aspire"
 networks:

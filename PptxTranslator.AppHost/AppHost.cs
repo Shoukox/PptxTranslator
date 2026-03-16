@@ -5,8 +5,8 @@ var builder = DistributedApplication.CreateBuilder(args);
 builder.AddDockerComposeEnvironment("env");
 
 builder.AddDockerfile("webfrontend", "..", "PptxTranslator.Web/Dockerfile")
-    .WithHttpEndpoint(targetPort: 8080)
-    .WithEnvironment("ASPNETCORE_FORWARDEDHEADERS_ENABLED", "true")
-    .WithEnvironment("ASPNETCORE_ENVIRONMENT", "Development");
+    .WithHttpEndpoint(port: 5000, targetPort: 8080)
+    .WithExternalHttpEndpoints()
+    .WithEnvironment("ASPNETCORE_FORWARDEDHEADERS_ENABLED", "true");
 
 builder.Build().Run();
