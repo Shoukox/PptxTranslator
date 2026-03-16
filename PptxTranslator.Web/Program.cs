@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http.Features;
 using PptxTranslator.Web;
 using PptxTranslator.Web.Components;
@@ -16,6 +17,13 @@ builder.Services.Configure<FormOptions>(options =>
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+// Data protection
+string dpDirName = "dpkeys-sosuweb";
+Directory.CreateDirectory(dpDirName);
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(dpDirName))
+    .SetApplicationName("SosuWeb");
 
 builder.Services.AddOutputCache();
 

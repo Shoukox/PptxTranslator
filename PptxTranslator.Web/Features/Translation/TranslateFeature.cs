@@ -72,6 +72,11 @@ internal static partial class TranslateFeature
                     detail: "Something went wrong...",
                     statusCode: StatusCodes.Status500InternalServerError);
             }
+            logger.LogInformation(
+                "Translation succeeded. Python: {PythonCommand}, StdOut: {StdOut}, StdErr: {StdErr}",
+                translationResult.PythonCommand,
+                translationResult.StandardOutput,
+                translationResult.StandardError);
 
             if (translationResult.PartialFailureCount > 0)
             {
